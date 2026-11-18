@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Click the Duck</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #e7f6fb;
+      color: #173a42;
+      font: 1.125rem system-ui, sans-serif;
+      text-align: center;
+    }
+
+    main { padding: 1rem; }
+    h1 { margin: 0 0 .25em; }
+    p { margin: 0 0 1.25em; }
+
+    button {
+      display: inline-block;
+      width: min(100%, 22rem);
+      padding: 0;
+      border: 0;
+      border-radius: 1.5rem;
+      background: #c9ebf7;
+      cursor: pointer;
+    }
+
+    button:focus-visible { outline: 3px solid #173a42; outline-offset: 5px; }
+    button:active { transform: scale(.98); }
+    svg { display: block; width: 100%; height: auto; }
+    #status { min-height: 1.5em; margin: .75em 0 0; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Click the Duck</h1>
+    <p>Click or tap the duck to hear it quack.</p>
+    <button id="duck" type="button" aria-label="Make the duck quack">
+      <svg viewBox="0 0 320 240" width="320" height="240" aria-hidden="true">
+        <circle cx="249" cy="58" r="24" fill="#fff5c2"/>
+        <ellipse cx="153" cy="195" rx="118" ry="23" fill="#93d7ec"/>
+        <path d="M37 196h33m168-4h39m-70 18h25" fill="none" stroke="#e7f6fb"
+              stroke-width="4" stroke-linecap="round"/>
+        <path d="M126 136c-29 1-51-7-68-22 4 41 36 77 91 77 50 0 79-21 79-60V98h-63z"
+              fill="#ffc94d"/>
+        <circle cx="193" cy="95" r="42" fill="#ffdb65"/>
+        <path d="M224 97c14-8 26-3 40 4-9 13-27 18-42 9z" fill="#ee812c"/>
+        <circle cx="207" cy="86" r="5" fill="#173a42"/>
+        <circle cx="208.5" cy="84.5" r="1.5" fill="#fff"/>
+        <path d="M106 145c23 8 55-8 74 1 4 19-44 35-74-1z" fill="#eaa72e"/>
+      </svg>
+    </button>
+    <p id="status" role="status"></p>
+  </main>
+  <script>
+    const status = document.querySelector('#status');
+    let audio;
+    let statusTimer;
+
+    document.querySelector('#duck').addEventListener('click', async () => {
+      try {
+        audio ??= new AudioContext();
+        await audio.resume();
+        const now = audio.currentTime;
+        const voice = audio.createOscillator();
+        const resonance = audio.createBiquadFilter();
+        const volume = audio.createGain();
+
+        voice.type = 'sawtooth';
+        voice.frequency.setValueAtTime(175, now);
+        voice.frequency.linearRampToValueAtTime(245, now + .045);
+        voice.frequency.exponentialRampToValueAtTime(100, now + .28);
+
+        resonance.type = 'bandpass';
+        resonance.Q.value = 2;
+        resonance.frequency.setValueAtTime(1400, now);
+        resonance.frequency.exponentialRampToValueAtTime(620, now + .13);
+        resonance.frequency.exponentialRampToValueAtTime(430, now + .28);
+
+        volume.gain.setValueAtTime(.001, now);
+        volume.gain.exponentialRampToValueAtTime(.45, now + .025);
+        volume.gain.exponentialRampToValueAtTime(.001, now + .3);
+        voice.connect(resonance).connect(volume).connect(audio.destination);
+        voice.start(now);
+        voice.stop(now + .3);
+        voice.onended = () => {
+          voice.disconnect();
+          resonance.disconnect();
+          volume.disconnect();
+        };
+
+        status.textContent = 'Quack!';
+        clearTimeout(statusTimer);
+        statusTimer = setTimeout(() => { status.textContent = ''; }, 900);
+      } catch {
+        clearTimeout(statusTimer);
+        status.textContent = 'Could not play audio in this browser.';
+      }
+    });
+  </script>
+</body>
+</html>
